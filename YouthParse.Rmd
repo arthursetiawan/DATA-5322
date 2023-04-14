@@ -1,0 +1,423 @@
+---
+title: "YouthParseRMD"
+output: html_document
+date: "2023-04-08"
+---
+
+```{r}
+# Load libraries ----------------------------------------------------------
+library(tidyverse)
+
+# Load data ---------------------------------------------------------------
+load("C:/Users/setia/Documents/Data Science MSDS/DATA 5321/NSDUH_2020.Rdata")
+```
+
+
+
+```{r}
+# Select only variables of interest -------------------------------------------
+
+#Focusing mostly on 'smoking', marijuana and tobacco frequency
+
+focused_cols <- c('ircigfm', #cigarette frequency past month (1-30)
+                  'IRSMKLSS30N', # smokeless tobacco frequency past month (1-30)
+                  'irmjfy', # marijuana frequency past year (1-365)
+                  'ircigage', # cigarette age of first use (1-55), 991=never used
+                  'irsmklsstry', # smokeless tobacco age of first use (1-70), 991=never used
+                  'irmjage', # marijuana age of first use (1-83), 991=never used
+                  'mrjflag', # marijuana ever used (0=never, 1=ever)
+                  'tobflag', # any tobacco ever used (0=never, 1=ever)
+                  'mrjmdays', # number of days of marijuana in past month (1-4 categories, 5=none)
+                  'cigmdays', # number of days of cigarettes in past month (1-5 categories, 6=none)
+                  'smklsmdays', # number of days of smokeless tobacco in past month (1-4 categories, 5=none)
+                  'irsex', # binary sex (1=male, 2=female)
+                  'NEWRACE2', # race (7 categories)
+                  'EDUSCHGRD2', # what grade in now/will be in (11 categories, 98,99= blank/skip)
+                  'eduskpcom', #how many days skipped school in past month (1-30, 94/97/98/99=blank/skip)
+                  'govtprog', # got gov assistance (1=yes, 2=no)
+                  'COUTYP4', # metro size status (1=large metro, 2=small metro, 3=nonmetro)
+                  'AGE2', #FINAL EDITED AGE, CATEGORIES OF AGE GROUPS
+                  'miltfamly', #ANY IMMEDIATE FAMILY CURRENTLY IN US MILITARY, 1 = YEs, 2 = No, 85,94,97,98 unknown / skip
+                  'irwrkstat', #EMPLOYMENT STATUS - IMPUTATION REVISED 1 = fulltime, 2 = part time, 3 = unemployed, 4 = other, 99 = 12-14 yr olds
+                  'IRINSUR4', #OVERALL HEALTH INSURANCE - IMPUTATION REVISED 1 = covered by helath insurance, 2 = not covered
+                  'irfamsoc', #FAM RECEIVE SS OR RR PAYMENTS - IMPUTATION REVISED, 1 = yes, 2 = no
+                  'irfstamp', #RESP/OTH FAM MEM REC FOOD STAMPS - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'irfampmt', #FAM RECEIVE PUBLIC ASSIST - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'income', # total family income (4 categories)
+                  'iralcfy', # alcohol frequency past year (1-365)
+                  'iralcage', # alcohol age of first use (1-66), 991=never used
+                  'imother', # for youth, mother in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                  'ifather', # for youth, father in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                  'ANYEDUC3', #YTH HAD ANY DRUG OR ALCOHOL EDUCATION IN SCHOOL
+                  'rlgimpt' #-RELIGIOUS BELIEFS VERY IMPORTANT IN LIFE
+                  )
+
+#mrjflag = response var 
+#Remove any correlated marijuana columns since we are predicting if they have EVER used marijuana before
+binary_cols <- c('ircigfm', #cigarette frequency past month (1-30)
+                  'IRSMKLSS30N', # smokeless tobacco frequency past month (1-30)
+                  'ircigage', # cigarette age of first use (1-55), 991=never used
+                  'irsmklsstry', # smokeless tobacco age of first use (1-70), 991=never used
+                  'mrjflag', # marijuana ever used (0=never, 1=ever)
+                  'tobflag', # any tobacco ever used (0=never, 1=ever)
+                  'cigmdays', # number of days of cigarettes in past month (1-5 categories, 6=none)
+                  'smklsmdays', # number of days of smokeless tobacco in past month (1-4 categories, 5=none)
+                  'irsex', # binary sex (1=male, 2=female)
+                  'NEWRACE2', # race (7 categories)
+                  'EDUSCHGRD2', # what grade in now/will be in (11 categories, 98,99= blank/skip)
+                  'eduskpcom', #how many days skipped school in past month (1-30, 94/97/98/99=blank/skip)
+                  'govtprog', # got gov assistance (1=yes, 2=no)
+                  'COUTYP4', # metro size status (1=large metro, 2=small metro, 3=nonmetro)
+                 'AGE2', #FINAL EDITED AGE, CATEGORIES OF AGE GROUPS
+                  'miltfamly', #ANY IMMEDIATE FAMILY CURRENTLY IN US MILITARY, 1 = YEs, 2 = No, 85,94,97,98 unknown / skip
+                  'irwrkstat', #EMPLOYMENT STATUS - IMPUTATION REVISED 1 = fulltime, 2 = part time, 3 = unemployed, 4 = other, 99 = 12-14 yr olds
+                  'IRINSUR4', #OVERALL HEALTH INSURANCE - IMPUTATION REVISED 1 = covered by helath insurance, 2 = not covered
+                  'irfamsoc', #FAM RECEIVE SS OR RR PAYMENTS - IMPUTATION REVISED, 1 = yes, 2 = no
+                  'irfstamp', #RESP/OTH FAM MEM REC FOOD STAMPS - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'irfampmt', #FAM RECEIVE PUBLIC ASSIST - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'income', # total family income (4 categories)
+                 'iralcfy', # alcohol frequency past year (1-365)
+                 'iralcage', # alcohol age of first use (1-66), 991=never used
+                 'alcflag', # alcohol ever used (0=never, 1=ever)
+                 'imother', # for youth, mother in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                  'ifather', # for youth, father in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                 'ANYEDUC3', #YTH HAD ANY DRUG OR ALCOHOL EDUCATION IN SCHOOL
+                 'rlgimpt' #-RELIGIOUS BELIEFS VERY IMPORTANT IN LIFE
+                  )
+
+#cigmdays = response var
+#Removing similar frequency marijuana variables to account for overlap
+multi_cols <- c('IRSMKLSS30N', # smokeless tobacco frequency past month (1-30)
+                  'irsmklsstry', # smokeless tobacco age of first use (1-70), 991=never used
+                  'irmjage', # marijuana age of first use (1-83), 991=never used
+                  'mrjflag', # marijuana ever used (0=never, 1=ever)
+                  'mrjmdays', # number of days of marijuana in past month (1-4 categories, 5=none)
+                  'cigmdays', # number of days of cigarettes in past month (1-5 categories, 6=none)
+                  'smklsmdays', # number of days of smokeless tobacco in past month (1-4 categories, 5=none)
+                  'irsex', # binary sex (1=male, 2=female)
+                  'NEWRACE2', # race (7 categories)
+                  'EDUSCHGRD2', # what grade in now/will be in (11 categories, 98,99= blank/skip)
+                  'eduskpcom', #how many days skipped school in past month (1-30, 94/97/98/99=blank/skip)
+                  'govtprog', # got gov assistance (1=yes, 2=no)
+                  'COUTYP4', # metro size status (1=large metro, 2=small metro, 3=nonmetro)
+                'AGE2', #FINAL EDITED AGE, CATEGORIES OF AGE GROUPS
+                  'miltfamly', #ANY IMMEDIATE FAMILY CURRENTLY IN US MILITARY, 1 = YEs, 2 = No, 85,94,97,98 unknown / skip
+                  'irwrkstat', #EMPLOYMENT STATUS - IMPUTATION REVISED 1 = fulltime, 2 = part time, 3 = unemployed, 4 = other, 99 = 12-14 yr olds
+                  'IRINSUR4', #OVERALL HEALTH INSURANCE - IMPUTATION REVISED 1 = covered by helath insurance, 2 = not covered
+                  'irfamsoc', #FAM RECEIVE SS OR RR PAYMENTS - IMPUTATION REVISED, 1 = yes, 2 = no
+                  'irfstamp', #RESP/OTH FAM MEM REC FOOD STAMPS - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'irfampmt', #FAM RECEIVE PUBLIC ASSIST - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'income', # total family income (4 categories)
+                'iralcfy', # alcohol frequency past year (1-365)
+                'iralcage', # alcohol age of first use (1-66), 991=never used
+                'alcflag', # alcohol ever used (0=never, 1=ever)
+                'imother', # for youth, mother in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                  'ifather', # for youth, father in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                'ANYEDUC3', #YTH HAD ANY DRUG OR ALCOHOL EDUCATION IN SCHOOL
+                'rlgimpt' #-RELIGIOUS BELIEFS VERY IMPORTANT IN LIFE
+                  )
+
+#irmjfy = response var
+#Removing similar frequency marijuana variables to account for overlap
+regression_cols <- c('ircigfm', #cigarette frequency past month (1-30)
+                  'IRSMKLSS30N', # smokeless tobacco frequency past month (1-30)
+                  'irmjfy', # marijuana frequency past year (1-365)
+                  'ircigage', # cigarette age of first use (1-55), 991=never used
+                  'irsmklsstry', # smokeless tobacco age of first use (1-70), 991=never used
+                  'tobflag', # any tobacco ever used (0=never, 1=ever)
+                  'cigmdays', # number of days of cigarettes in past month (1-5 categories, 6=none)
+                  'smklsmdays', # number of days of smokeless tobacco in past month (1-4 categories, 5=none)
+                  'irsex', # binary sex (1=male, 2=female)
+                  'NEWRACE2', # race (7 categories)
+                  'EDUSCHGRD2', # what grade in now/will be in (11 categories, 98,99= blank/skip)
+                  'eduskpcom', #how many days skipped school in past month (1-30, 94/97/98/99=blank/skip)
+                  'govtprog', # got gov assistance (1=yes, 2=no)
+                  'COUTYP4', # metro size status (1=large metro, 2=small metro, 3=nonmetro)
+                  'AGE2', #FINAL EDITED AGE, CATEGORIES OF AGE GROUPS
+                  'miltfamly', #ANY IMMEDIATE FAMILY CURRENTLY IN US MILITARY, 1 = YEs, 2 = No, 85,94,97,98 unknown / skip
+                  'irwrkstat', #EMPLOYMENT STATUS - IMPUTATION REVISED 1 = fulltime, 2 = part time, 3 = unemployed, 4 = other, 99 = 12-14 yr olds
+                  'IRINSUR4', #OVERALL HEALTH INSURANCE - IMPUTATION REVISED 1 = covered by helath insurance, 2 = not covered
+                  'irfamsoc', #FAM RECEIVE SS OR RR PAYMENTS - IMPUTATION REVISED, 1 = yes, 2 = no
+                  'irfstamp', #RESP/OTH FAM MEM REC FOOD STAMPS - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'irfampmt', #FAM RECEIVE PUBLIC ASSIST - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'income', # total family income (4 categories)
+                  'iralcfy', # alcohol frequency past year (1-365)
+                  'iralcage', # alcohol age of first use (1-66), 991=never used
+                  'alcflag', # alcohol ever used (0=never, 1=ever)
+                  'imother', # for youth, mother in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                  'ifather', # for youth, father in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                  'ANYEDUC3', #YTH HAD ANY DRUG OR ALCOHOL EDUCATION IN SCHOOL
+                  'rlgimpt' #-RELIGIOUS BELIEFS VERY IMPORTANT IN LIFE
+                  )
+
+
+```
+
+```{r}                  
+# select those that answered the youth experiences questions
+dfo <- NSDUH_2020[!is.na(NSDUH_2020$schfelt),] 
+
+# make a vector of substance use column names
+substance_cols <- c(   # quantitative values for frequency of use
+                       'iralcfy', # alcohol frequency past year (1-365)
+                       'irmjfy', # marijuana frequency past year (1-365)
+                       'ircigfm', #cigarette frequency past month (1-30)
+                       'IRSMKLSS30N', # smokeless tobacco frequency past month (1-30)
+                       'iralcfm', # alcohol frequency past month (1-30)
+                       'irmjfm', # marijuana frequency past month (1-30)
+                       
+                       # quantitative values for age of first use
+                       'ircigage', # cigarette age of first use (1-55), 991=never used
+                       'irsmklsstry', # smokeless tobacco age of first use (1-70), 991=never used
+                       'iralcage', # alcohol age of first use (1-66), 991=never used
+                       'irmjage', # marijuana age of first use (1-83), 991=never used
+                       
+                       # binary categories for use at all
+                       'mrjflag', # marijuana ever used (0=never, 1=ever)
+                       'alcflag', # alcohol ever used (0=never, 1=ever)
+                       'tobflag', # any tobacco ever used (0=never, 1=ever)
+                       
+                       # multiclass categories for frequency of use 
+                       'alcydays', # number of days of alcohol in past year (1-5 categories, 6=none)
+                       'mrjydays', # number of days of marijuana in past year (1-5 categories, 6=none)
+                       'alcmdays', # number of days of alcohol in past month (1-4 categories, 5=none)
+                       'mrjmdays', # number of days of marijuana in past month (1-4 categories, 5=none)
+                       'cigmdays', # number of days of cigarettes in past month (1-5 categories, 6=none)
+                       'smklsmdays' # number of days of smokeless tobacco in past month (1-4 categories, 5=none)
+                      )
+```
+
+```{r}
+# make a vector of demographic column names
+demographic_cols <- c(
+                  'irsex', # binary sex (1=male, 2=female)
+                  'NEWRACE2', # race (7 categories)
+                  'HEALTH2', # overall health (4 categories), 1 = excellent, 2 = very good, 3 = good, 4 = fair,poor
+                  'eduschlgo', # now going to school (1=yes, 2=no)
+                  'EDUSCHGRD2', # what grade in now/will be in (11 categories, 98,99= blank/skip)
+                  'eduskpcom', #how many days skipped school in past month (1-30, 94/97/98/99=blank/skip)
+                  'imother', # for youth, mother in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                  'ifather', # for youth, father in household (1=yes, 2=no, 3=don't know, 4=over 18)
+                  'income', # total family income (4 categories)
+                  'govtprog', # got gov assistance (1=yes, 2=no)
+                  'POVERTY3', # poverty level (4 categories)
+                  'PDEN10', # population density (1= >1M people, 2=<1M people, 3=can't be determined)
+                  'COUTYP4', # metro size status (1=large metro, 2=small metro, 3=nonmetro)
+                  #adding more columns below
+                  'AGE2', #FINAL EDITED AGE, CATEGORIES OF AGE GROUPS
+                  'miltfamly', #ANY IMMEDIATE FAMILY CURRENTLY IN US MILITARY, 1 = YEs, 2 = No, 85,94,97,98 unknown / skip
+                  'sexident', #SEXUAL IDENTITY - 1 = Hetero, 2 = Lesbian/Gay, 3 = Bisexual, 85,94,97,98,99 unknown/skip
+                  'irwrkstat', #EMPLOYMENT STATUS - IMPUTATION REVISED 1 = fulltime, 2 = part time, 3 = unemployed, 4 = other, 99 = 12-14 yr olds
+                  'IRINSUR4', #OVERALL HEALTH INSURANCE - IMPUTATION REVISED 1 = covered by helath insurance, 2 = not covered
+                  'irfamsoc', #FAM RECEIVE SS OR RR PAYMENTS - IMPUTATION REVISED, 1 = yes, 2 = no
+                  'irfstamp', #RESP/OTH FAM MEM REC FOOD STAMPS - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  'irfampmt' #FAM RECEIVE PUBLIC ASSIST - IMPUTATION REVISED, 1 = Yes, 2 = No
+                  )
+```
+
+```{r}
+# make a vector of all youth experiences
+youth_cols <- c(
+            'schfelt', #HOW YTH FELT: ABOUT GOING TO SCHOOL IN PST YR
+            'tchgjob', #TEACHER LET YTH KNOW DOING GOOD JOB IN PST YR
+            'avggrade', #-GRADE AVERAGE FOR LAST GRADING PERIOD COMPLETED
+            'stndscig', #STUDENTS IN YTH GRADE SMOKE CIGARETTES
+            'stndsmj', #-STUDENTS IN YTH GRADE USE MARIJUANA
+            'stndalc', #-STUDENTS IN YTH GRADE DRINK ALCOHOLIC BEVERAGES
+            'stnddnk', #-STUDENTS IN YTH GRADE GET DRUNK ONCE/WEEK
+            'parchkhw', #PARENTS CHECK IF HOMEWORK DONE IN PST YR
+            'parhlphw', #PARENTS HELP WITH HOMEWORK IN PST YR
+            'PRCHORE2', #PARENTS MAKE YTH DO CHORES AROUND HOUSE IN PST YR
+            'PRLMTTV2', #PARENTS LIMIT AMOUNT OF TV IN PST YR
+            'parlmtsn', #PARENTS LIMIT TIME OUT ON SCHOOL NIGHT IN PST YR
+            'PRGDJOB2', #PARENTS TELL YTH HAD DONE GOOD JOB IN PST YR
+            'PRPROUD2', #PARENTS TELL YTH PROUD OF THINGS DONE IN PST YR
+            'argupar', # TIMES ARGUED/HAD A FIGHT WITH ONE PARENT IN PST YR
+            'YOFIGHT2', #YOUTH HAD SERIOUS FIGHT AT SCHOOL/WORK
+            'YOGRPFT2', #YOUTH FOUGHT WITH GROUP VS OTHER GROUP
+            'YOHGUN2', #YOUTH CARRIED A HANDGUN
+            'YOSELL2', #YOUTH SOLD ILLEGAL DRUGS
+            'YOSTOLE2', #YOUTH STOLE/TRIED TO STEAL ITEM >$50
+            'YOATTAK2', # YOUTH ATTACKED WITH INTENT TO SERIOUSLY HARM
+            'PRPKCIG2', # YTH THINK: PARENTS FEEL ABT YTH SMOKE PACK CIG/DAY
+            'PRMJEVR2', # YTH THINK: PARENTS FEEL ABT YTH TRY MARIJUANA
+            'prmjmo', #YTH THINK: PARENTS FEEL ABT YTH USE MARIJUANA MNTHLY
+            'PRALDLY2', #-YTH THINK: PARNTS FEEL ABT YTH DRK 1-2 ALC BEV/DAY
+            'YFLPKCG2', #-HOW YTH FEELS: PEERS SMOKE PACK/DAY CIG
+            'YFLTMRJ2', #HOW YTH FEELS: PEERS TRY MARIJUANA
+            'yflmjmo', #HOW YTH FEELS: PEERS USING MARIJUANA MONTHLY
+            'YFLADLY2', #HOW YTH FEELS: PEERS DRNK 1-2 ALC BEV/DAY
+            'FRDPCIG2', #-YTH THINK: CLSE FRND FEEL ABT YTH SMK 1+ PAC DAILY
+            'FRDMEVR2', #YTH THINK: CLOSE FRNDS FEEL ABT YTH TRY MARIJUANA
+            'frdmjmon', #C-YTH THINK: CLSE FRNDS FEEL ABT YTH USE MARIJUANA MON
+            'FRDADLY2', #YTH THINK: CLSE FRND FEEL ABT YTH HAVE 1-2 ALC/DAY
+            'talkprob', #WHO YTH TALKS WITH ABOUT SERIOUS PROBLEMS
+            'PRTALK3', #TALKED WITH PARENT ABOUT DANGER TOB/ALC/DRG
+            'PRBSOLV2', #PARTICIPATED IN PRBSLV/COMMSKILL/SELFESTEEM GROUP
+            'PREVIOL2', #PARTICIPATED IN VIOLENCE PREVENTION PROGRAM
+            'PRVDRGO2', #PARTICIPATED IN SUBSTANCE PREV PROGRAM OUTSIDE SCHOOL
+            'GRPCNSL2', #PARTICIPATED IN PROGRAM TO HELP SUBSTANCE USE
+            'PREGPGM2', #-PARTICIPATED IN PREG/STD PREVENTION PROGRAM
+            'YTHACT2', #YTH PARTICIPATED IN YOUTH ACTIVITIES
+            'DRPRVME3', #-YTH SEEN ALC OR DRUG PREVENTION MESSAGE OUTSIDE SCHOOL
+            'ANYEDUC3', #YTH HAD ANY DRUG OR ALCOHOL EDUCATION IN SCHOOL
+            'rlgattd', #-NUMBER TIMES ATTEND RELIGIOUS SERVICES IN PST YR
+            'rlgimpt', #-RELIGIOUS BELIEFS VERY IMPORTANT IN LIFE
+            'rlgdcsn', #RELIGIOUS BELIEFS INFLUENCE LIFE DECISIONS
+            'rlgfrnd'  #-IMPORTANT FOR FRIENDS TO SHARE RELIGIOUS BELIEFS
+            
+)
+```
+
+
+```{r}
+# select columns of interest
+df_youth <- dfo[,youth_cols]
+df_substance <- dfo[,substance_cols] # select specific substance columns of interest
+df_demog <- dfo[,demographic_cols]  # select specific demographic columns of interest
+
+# combine into one data frame
+df = cbind(df_youth, df_substance,  df_demog) #combine into one data frame
+```
+
+Data Cleaning
+
+Question: Binary Classification: mrjflag - marijuana ever used (0=never, 1=ever)
+Question: Multi-class Classification: mrjmdays - number of days of marijuana in past month (1-4 categories, 5=none)
+Question: Regression: irmjfy - marijuana frequency past year (1-365)
+
+```{r}
+#version: mrjflag as response variable (binary classification)
+
+#'ircigfm' cigarette frequency past month (1-30)
+#If never done cigarettes or used in past month, let us change to 0
+df[df$ircigfm %in% c(91,93), 'ircigfm'] <- 0
+
+#'IRSMKLSS30N', # smokeless tobacco frequency past month (1-30)
+#Never used smokeless tobacco / used in path month change to 0
+df[df$IRSMKLSS30N %in% c(91,93), 'IRSMKLSS30N'] <- 0
+
+#RESPONSE VARIABLE (QUANTITATIVE)
+#'irmjfy', # marijuana frequency past year (1-365)
+#If never done marijuana / didn't do marijuana in past year we impute 991 and 993 as 0
+df[df$irmjfy %in% c(991,993), 'irmjfy'] <- 0
+
+#'ircigage', # cigarette age of first use (1-55), 991=never used
+#Alter age of first use for never used to be 0
+df[df$ircigage %in% c(991), 'ircigage'] <- 0
+
+#'irsmklsstry', # smokeless tobacco age of first use (1-70), 991=never used
+#Alter age of first use for never used to be 0
+df[df$irsmklsstry %in% c(991), 'irsmklsstry'] <- 0
+
+#'irmjage', # marijuana age of first use (1-83), 991=never used
+#Alter age of first use for never used to be 0
+df[df$irmjage %in% c(991), 'irmjage'] <- 0
+
+#RESPONSE VARIABLE (BINARY)
+#'mrjflag', # marijuana ever used (0=never, 1=ever)
+# only 0 or 1 exists
+
+#'tobflag', # any tobacco ever used (0=never, 1=ever)
+# only 0 or 1 exists
+
+#RESPONSE VARIABLE (MULTI-CLASS CLASSIFICATION)
+#'mrjmdays', # number of days of marijuana in past month (1-4 categories, 5=none)
+#Cleaning this to factor, non-user/no past month use will now be category = 0
+df[df$mrjmdays %in% c(5), 'mrjmdays'] <- 0
+
+#'cigmdays', # number of days of cigarettes in past month (1-5 categories, 6=none)
+#Cleaning this to factor, non-user/no past month use will now be category = 0
+df[df$cigmdays %in% c(6), 'cigmdays'] <- 0
+
+#'smklsmdays', # number of days of smokeless tobacco in past month (1-4 categories, 5=none)
+#Cleaning this to factor, non-user/no past month use will now be category = 0
+df[df$smklsmdays %in% c(5), 'smklsmdays'] <- 0
+
+#Demographics
+#'irsex', # binary sex (1=male, 2=female)
+
+#'NEWRACE2', # race (7 categories)
+
+#'EDUSCHGRD2', # what grade in now/will be in (11 categories, 98,99= blank/skip)
+#Altering blank / skip to one category = 0
+df[df$EDUSCHGRD2 %in% c(98,99), 'EDUSCHGRD2'] <- 0
+
+#'eduskpcom', #how many days skipped school in past month (1-30, 94/97/98/99=blank/skip)
+#We are noticing that most users skipped this question, so for those who did not answer/refused/skipped
+#We can only safely assume that they did not skip school, hence days skipped = 0
+df[df$eduskpcom %in% c(94,97,98,99), 'eduskpcom'] <- 0
+
+#'govtprog', # got gov assistance (1=yes, 2=no)
+df[df$govtprog %in% c(2), 'govtprog'] <- 0
+
+#'COUTYP4' # metro size status (1=large metro, 2=small metro, 3=nonmetro)
+#'
+#'AGE2', FINAL EDITED AGE, CATEGORIES OF AGE GROUPS
+
+#'MILTFAMLY', ANY IMMEDIATE FAMILY CURRENTLY IN US MILITARY, 1 = Yes, 2 = No, 85,94,97,98 unknown / skip
+df[df$miltfamly %in% c(85,94,97,98), 'miltfamly'] <- 0
+
+#  'SEXIDENT', SEXUAL IDENTITY - 1 = Hetero, 2 = Lesbian/Gay, 3 = Bisexual, 85,94,97,98,99 unknown/skip
+df[df$sexident %in% c(85,94,97,98,99), 'sexident'] <- 0
+
+#  'IRWRKSTAT', EMPLOYMENT STATUS - IMPUTATION REVISED 1 = fulltime, 2 = part time, 3 = unemployed, 4 = other, 99 = 12-14 yr olds
+df[df$irwrkstat %in% c(4,99), 'irwrkstat'] <- 0
+
+#  'IRINSUR4', OVERALL HEALTH INSURANCE - IMPUTATION REVISED 1 = covered by helath insurance, 2 = not covered
+df[df$IRINSUR4 %in% c(2), 'IRINSUR4'] <- 0
+
+#  'IRFAMSOC', FAM RECEIVE SS OR RR PAYMENTS - IMPUTATION REVISED, 1 = yes, 2 = no
+df[df$irfamsoc %in% c(2), 'irfamsoc'] <- 0
+
+# 'IRFSTAMP', RESP/OTH FAM MEM REC FOOD STAMPS - IMPUTATION REVISED, 1 = Yes, 2 = No
+df[df$irfstamp %in% c(2), 'irfstamp'] <- 0
+
+#  'IRFAMPMT', FAM RECEIVE PUBLIC ASSIST - IMPUTATION REVISED, 1 = Yes, 2 = No
+df[df$irfampmt %in% c(2), 'irfampmt'] <- 0
+
+# 'iralcfy', ALCOHOL FREQUENCY PAST YEAR - IMPUTATION REVISED
+df[df$iralcfy %in% c(991,993), 'iralcfy'] <- 0
+
+# 'iralcage', Start of using alcohol
+df[df$iralcage %in% c(991), 'iralcage'] <- 0
+
+#'ANYEDUC3', YTH HAD ANY DRUG OR ALCOHOL EDUCATION IN SCHOOL
+#'rlgimpt' #-RELIGIOUS BELIEFS VERY IMPORTANT IN LIFE
+#'
+df <- df %>% mutate(ANYEDUC3 = ifelse(is.na(ANYEDUC3), 0, ANYEDUC3),
+                    rlgimpt = ifelse(is.na(rlgimpt), 0, rlgimpt))
+```
+
+```{r}
+# Fix metadata ------------------------------------------------------------
+
+# make vector of columns from the data that should be converted to factors, unordered and ordered
+
+unordered_factor_cols <- c(names(df_youth), # all columns from youth
+                           'mrjflag','alcflag','tobflag', # binary flag columns from substance
+                           'irsex','NEWRACE2','eduschlgo','imother','ifather','govtprog','PDEN10','COUTYP4', # unordered categories for demographics
+                           'miltfamly','sexident','irwrkstat','IRINSUR4','irfamsoc','irfstamp','irfampmt') #added categories for demographics
+ordered_factor_cols <- c('EDUSCHGRD2','HEALTH2','POVERTY3','income',
+                         'mrjmdays','cigmdays','smklsmdays','AGE2') #added ordered factors
+
+# convert to factors
+df[unordered_factor_cols] <- lapply(df[unordered_factor_cols], factor) # correct columns to unordered factors (e.g. yes, no)
+df[ordered_factor_cols] <- lapply(df[ordered_factor_cols], factor, ordered=TRUE) # correct columns to ordered factors (e.g. small, medium, large)
+
+# fix variable label metadata to only include the selected columns
+new_labels <- attr(dfo,'var.labels')[match(names(df), attr(dfo,'names'))]
+attr(df,'var.labels') <- new_labels
+```
+
+```{r}
+# note: use attr(df,'var.labels') to see the labeled data
+
+youth_experience_cols = names(df_youth)
+save(df, youth_experience_cols, substance_cols, demographic_cols, focused_cols, binary_cols, multi_cols, regression_cols, file = 'youth_data.Rdata')
+```
+
+
+
+
+
